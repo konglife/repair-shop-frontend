@@ -1,5 +1,15 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+# Repair Shop Dashboard Frontend
+
+A Next.js-based dashboard for repair shop management, built with TypeScript, Material-UI, and Recharts.
+
+## Environment Setup
+
+1. Copy the `.env.local` file and update the values for your environment:
+   - `NEXT_PUBLIC_API_URL`: URL of your Strapi backend API (default: http://localhost:1337/api)
+   - Additional environment variables will be added as features are implemented
+
 ## Getting Started
 
 First, run the development server:
