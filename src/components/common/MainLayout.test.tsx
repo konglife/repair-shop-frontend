@@ -101,7 +101,8 @@ describe('MainLayout', () => {
 
     render(<MockedMainLayout>{testContent}</MockedMainLayout>);
     
-    const menuButton = screen.getByLabelText('open drawer');
+    const menuButtons = screen.getAllByLabelText(/drawer/);
+    const menuButton = menuButtons[0]; // Use the first button for the test
     expect(menuButton).toBeInTheDocument();
     
     fireEvent.click(menuButton);
@@ -114,5 +115,16 @@ describe('MainLayout', () => {
     const props = { children: testContent };
     render(<MockedMainLayout {...props} />);
     expect(screen.getByText('Test Content')).toBeInTheDocument();
+  });
+
+  test('desktop toggle works for collapsible sidebar', () => {
+    render(<MockedMainLayout>{testContent}</MockedMainLayout>);
+    
+    // Both mobile and desktop toggle buttons exist (one is hidden)
+    const toggleButtons = screen.getAllByLabelText(/drawer/);
+    expect(toggleButtons.length).toBeGreaterThanOrEqual(1);
+    
+    // Test that clicking works without errors
+    fireEvent.click(toggleButtons[0]);
   });
 });

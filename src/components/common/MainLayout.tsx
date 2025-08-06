@@ -9,10 +9,12 @@ import {
   IconButton,
   List,
   ListItem,
+  ListItemButton,
   ListItemIcon,
   ListItemText,
   Toolbar,
   Typography,
+  useTheme,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -27,6 +29,7 @@ import {
 import Link from 'next/link';
 
 const drawerWidth = 240;
+const collapsedDrawerWidth = 64;
 
 interface NavigationItem {
   label: string;
@@ -47,31 +50,46 @@ const navigationItems: NavigationItem[] = [
 ];
 
 export default function MainLayout({ children }: MainLayoutProps) {
+  const theme = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopOpen, setDesktopOpen] = useState(true);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
-  const drawer = (
+  const handleDesktopToggle = () => {
+    setDesktopOpen(!desktopOpen);
+  };
+
+  const currentDrawerWidth = desktopOpen ? drawerWidth : collapsedDrawerWidth;
+
+  const drawer = (isCollapsed: boolean = false) => (
     <Box>
       <Toolbar />
       <List>
         {navigationItems.map((item) => (
-          <ListItem
-            key={item.label}
-            component={Link}
-            href={item.href}
-            sx={{
-              color: 'inherit',
-              textDecoration: 'none',
-              '&:hover': {
-                backgroundColor: 'action.hover',
-              },
-            }}
-          >
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} />
+          <ListItem key={item.label} disablePadding>
+            <ListItemButton
+              component={Link}
+              href={item.href}
+              sx={{
+                minHeight: 48,
+                justifyContent: isCollapsed ? 'center' : 'initial',
+                px: 2.5,
+              }}
+            >
+              <ListItemIcon
+                sx={{
+                  minWidth: 0,
+                  mr: isCollapsed ? 0 : 3,
+                  justifyContent: 'center',
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              {!isCollapsed && <ListItemText primary={item.label} />}
+            </ListItemButton>
           </ListItem>
         ))}
       </List>
@@ -84,23 +102,31 @@ export default function MainLayout({ children }: MainLayoutProps) {
       <AppBar
         position="fixed"
         sx={{
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` },
+          width: '100%',
+          zIndex: (theme) => theme.zIndex.drawer + 1,
         }}
       >
         <Toolbar>
+          <Typography variant="h6" noWrap component="div">
+            Repair Shop Dashboard
+          </Typography>
           <IconButton
             color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: 'none' } }}
+            aria-label="toggle navigation drawer"
+            onClick={handleDesktopToggle}
+            sx={{ ml: 1, display: { xs: 'none', md: 'block' } }}
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Repair Shop Dashboard
-          </Typography>
+          <IconButton
+            color="inherit"
+            aria-label="open navigation drawer"
+            onClick={handleDrawerToggle}
+            sx={{ ml: 1, display: { xs: 'block', md: 'none' } }}
+          >
+            <MenuIcon />
+          </IconButton>
+          <Box sx={{ flexGrow: 1 }} />
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <IconButton color="inherit" size="large">
               <AccountCircle />
@@ -114,41 +140,53 @@ export default function MainLayout({ children }: MainLayoutProps) {
           </Box>
         </Toolbar>
       </AppBar>
-      <Box
-        component="nav"
-        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{
+          keepMounted: true, // Better open performance on mobile
+        }}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': { 
+            boxSizing: 'border-box', 
+            width: drawerWidth,
+            top: { xs: 56, sm: 64 }, // Account for mobile/desktop AppBar height
+            height: { xs: 'calc(100% - 56px)', sm: 'calc(100% - 64px)' },
+          },
+        }}
       >
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true,
-          }}
-          sx={{
-            display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-        >
-          {drawer}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', md: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
+        {drawer(false)}
+      </Drawer>
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          '& .MuiDrawer-paper': { 
+            boxSizing: 'border-box', 
+            width: currentDrawerWidth,
+            transition: theme.transitions.create('width', {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
+            overflowX: 'hidden',
+          },
+        }}
+        open
+      >
+        {drawer(!desktopOpen)}
+      </Drawer>
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           p: 3,
-          width: { md: `calc(100% - ${drawerWidth}px)` },
+          ml: { xs: 0, md: `${currentDrawerWidth}px` },
+          transition: theme.transitions.create(['margin'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
         }}
       >
         <Toolbar />
