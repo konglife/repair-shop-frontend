@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import {
   Box,
   Card,
@@ -15,7 +15,8 @@ import {
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { getLoginRedirect } from '@/lib/route-protection';
 
 interface LoginFormData {
   email: string;
@@ -27,9 +28,10 @@ interface LoginFormErrors {
   password?: string;
 }
 
-export default function LoginPage() {
+function LoginPageContent() {
   const { login, isAuthenticated, loading: authLoading, error: authError, clearError } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
@@ -42,9 +44,10 @@ export default function LoginPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/');
+      const redirectTo = getLoginRedirect(searchParams?.get('redirect') || undefined);
+      router.push(redirectTo);
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, searchParams]);
 
   // Clear auth errors when component mounts or user starts typing
   useEffect(() => {
@@ -103,8 +106,9 @@ export default function LoginPage() {
       const success = await login(formData.email, formData.password);
       
       if (success) {
-        // Redirect to dashboard on successful login
-        router.push('/');
+        // Redirect to intended destination or dashboard
+        const redirectTo = getLoginRedirect(searchParams?.get('redirect') || undefined);
+        router.push(redirectTo);
       }
       // Error handling is managed by AuthContext and displayed below
     } catch (error) {
@@ -268,5 +272,25 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </Box>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          bgcolor: 'grey.100',
+        }}
+      >
+        <CircularProgress size={40} />
+      </Box>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 }

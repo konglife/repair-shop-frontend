@@ -30,11 +30,13 @@ import {
   ShoppingCart,
   Build,
   PointOfSale,
+  ShoppingBag,
   AccountCircle,
   Logout,
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import Breadcrumbs from '@/components/common/Breadcrumbs';
 
 const drawerWidth = 240;
 const collapsedDrawerWidth = 64;
@@ -55,6 +57,7 @@ const navigationItems: NavigationItem[] = [
   { label: 'Stock', href: '/stock', icon: <ShoppingCart /> },
   { label: 'Sales', href: '/sales', icon: <PointOfSale /> },
   { label: 'Repairs', href: '/repairs', icon: <Build /> },
+  { label: 'Purchases', href: '/purchases', icon: <ShoppingBag /> },
 ];
 
 export default function MainLayout({ children }: MainLayoutProps) {
@@ -230,6 +233,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         }}
       >
         <Toolbar />
+        <Breadcrumbs />
         {children}
       </Box>
       
