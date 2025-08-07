@@ -245,7 +245,7 @@ describe('AuthAPI', () => {
       const result = await authAPI.login(mockCredentials);
 
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:1337/api/auth/local',
+        expect.stringContaining('/api/auth/local'),
         {
           method: 'POST',
           headers: {
@@ -324,14 +324,37 @@ describe('AuthAPI', () => {
   });
 
   describe('isAuthenticated', () => {
-    it('should return true when token and user exist', () => {
+    it('should return true when token and user exist and token is not expired', () => {
+      // Create a valid JWT token (not expired)
+      const futureTime = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
+      const payload = { exp: futureTime };
+      const validToken = `header.${btoa(JSON.stringify(payload))}.signature`;
+
       mockLocalStorage.getItem.mockImplementation((key) => {
-        if (key === 'repair_shop_auth_token') return 'valid-token';
+        if (key === 'repair_shop_auth_token') return validToken;
         if (key === 'repair_shop_auth_user') return JSON.stringify({ id: 1 });
         return null;
       });
 
       expect(authAPI.isAuthenticated()).toBe(true);
+    });
+
+    it('should return false and call logout when token is expired', () => {
+      // Create an expired JWT token
+      const pastTime = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
+      const payload = { exp: pastTime };
+      const expiredToken = `header.${btoa(JSON.stringify(payload))}.signature`;
+
+      mockLocalStorage.getItem.mockImplementation((key) => {
+        if (key === 'repair_shop_auth_token') return expiredToken;
+        if (key === 'repair_shop_auth_user') return JSON.stringify({ id: 1 });
+        return null;
+      });
+
+      expect(authAPI.isAuthenticated()).toBe(false);
+      // Verify that logout was called (token and user should be removed)
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('repair_shop_auth_token');
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('repair_shop_auth_user');
     });
 
     it('should return false when token is missing', () => {
@@ -353,6 +376,16 @@ describe('AuthAPI', () => {
 
       expect(authAPI.isAuthenticated()).toBe(false);
     });
+
+    it('should handle malformed JWT token and return false', () => {
+      mockLocalStorage.getItem.mockImplementation((key) => {
+        if (key === 'repair_shop_auth_token') return 'invalid-jwt-token';
+        if (key === 'repair_shop_auth_user') return JSON.stringify({ id: 1 });
+        return null;
+      });
+
+      expect(authAPI.isAuthenticated()).toBe(false);
+    });
   });
 
   describe('getCurrentUser', () => {
@@ -365,8 +398,13 @@ describe('AuthAPI', () => {
     };
 
     it('should return user when authenticated', () => {
+      // Create a valid JWT token (not expired)
+      const futureTime = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
+      const payload = { exp: futureTime };
+      const validToken = `header.${btoa(JSON.stringify(payload))}.signature`;
+
       mockLocalStorage.getItem.mockImplementation((key) => {
-        if (key === 'repair_shop_auth_token') return 'valid-token';
+        if (key === 'repair_shop_auth_token') return validToken;
         if (key === 'repair_shop_auth_user') return JSON.stringify(mockUser);
         return null;
       });

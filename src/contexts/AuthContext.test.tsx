@@ -7,6 +7,14 @@ import { render, screen, act, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from './AuthContext';
 import * as authModule from '@/lib/auth';
 
+// Mock Next.js navigation
+const mockPush = jest.fn();
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
+
 // Mock the auth module
 jest.mock('@/lib/auth', () => ({
   authAPI: {
@@ -44,8 +52,11 @@ function TestComponent() {
       >
         Login
       </button>
-      <button data-testid="logout-button" onClick={logout}>
+      <button data-testid="logout-button" onClick={() => logout()}>
         Logout
+      </button>
+      <button data-testid="logout-no-redirect-button" onClick={() => logout(false)}>
+        Logout No Redirect
       </button>
       <button data-testid="clear-error-button" onClick={clearError}>
         Clear Error
@@ -65,12 +76,18 @@ const mockUser = {
 describe('AuthContext', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPush.mockClear();
     // Mock console.error to avoid noise during tests
     jest.spyOn(console, 'error').mockImplementation(() => {});
+    
+    // Mock timers for periodic token validation tests
+    jest.useFakeTimers();
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
   });
 
   describe('useAuth hook', () => {
@@ -251,7 +268,7 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('user')).toHaveTextContent('no-user');
     });
 
-    it('should clear error', () => {
+    it('should clear error', async () => {
       (authModule.authAPI.isAuthenticated as jest.Mock).mockReturnValue(false);
       (authModule.authAPI.getCurrentUser as jest.Mock).mockReturnValue(null);
       (authModule.handleLogin as jest.Mock).mockResolvedValue({
@@ -270,7 +287,7 @@ describe('AuthContext', () => {
         screen.getByTestId('login-button').click();
       });
 
-      waitFor(() => {
+      await waitFor(() => {
         expect(screen.getByTestId('error')).toHaveTextContent('Test error');
       });
 
@@ -293,9 +310,115 @@ describe('AuthContext', () => {
         </AuthProvider>
       );
 
-      // Should default to logged out state
+      // Should show error message
+      expect(screen.getByTestId('error')).toHaveTextContent('Authentication check failed');
       expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
       expect(screen.getByTestId('user')).toHaveTextContent('no-user');
+    });
+
+    it('should redirect to login on logout by default', () => {
+      (authModule.authAPI.isAuthenticated as jest.Mock).mockReturnValue(true);
+      (authModule.authAPI.getCurrentUser as jest.Mock).mockReturnValue(mockUser);
+
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+
+      // Perform logout
+      act(() => {
+        screen.getByTestId('logout-button').click();
+      });
+
+      expect(authModule.authAPI.logout).toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalledWith('/login');
+      expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
+    });
+
+    it('should not redirect when logout called with redirectToLogin=false', () => {
+      (authModule.authAPI.isAuthenticated as jest.Mock).mockReturnValue(true);
+      (authModule.authAPI.getCurrentUser as jest.Mock).mockReturnValue(mockUser);
+
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+
+      // Perform logout without redirect
+      act(() => {
+        screen.getByTestId('logout-no-redirect-button').click();
+      });
+
+      expect(authModule.authAPI.logout).toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
+      expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
+    });
+
+    it('should handle token expiration during initialization', () => {
+      (authModule.authAPI.isAuthenticated as jest.Mock).mockReturnValue(false);
+      (authModule.authAPI.getCurrentUser as jest.Mock)
+        .mockReturnValueOnce(mockUser) // First call returns user (simulating expired token scenario)
+        .mockReturnValue(null);
+
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+
+      expect(screen.getByTestId('error')).toHaveTextContent('Your session has expired. Please log in again.');
+      expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
+    });
+
+    it('should perform periodic token validation', () => {
+      (authModule.authAPI.isAuthenticated as jest.Mock)
+        .mockReturnValueOnce(true) // Initial check
+        .mockReturnValueOnce(false); // Periodic check - token expired
+      (authModule.authAPI.getCurrentUser as jest.Mock).mockReturnValue(mockUser);
+
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+
+      // Initial state should be authenticated
+      expect(screen.getByTestId('authenticated')).toHaveTextContent('true');
+
+      // Fast-forward 5 minutes to trigger periodic check
+      act(() => {
+        jest.advanceTimersByTime(5 * 60 * 1000);
+      });
+
+      // Should detect token expiration and logout
+      expect(screen.getByTestId('error')).toHaveTextContent('Your session has expired. Please log in again.');
+      expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
+      expect(mockPush).toHaveBeenCalledWith('/login');
+    });
+
+    it('should not run periodic validation when not authenticated', () => {
+      const mockIsAuthenticated = jest.fn().mockReturnValue(false);
+      (authModule.authAPI.isAuthenticated as jest.Mock) = mockIsAuthenticated;
+      (authModule.authAPI.getCurrentUser as jest.Mock).mockReturnValue(null);
+
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+
+      // Clear the initial call
+      mockIsAuthenticated.mockClear();
+
+      // Fast-forward 5 minutes
+      act(() => {
+        jest.advanceTimersByTime(5 * 60 * 1000);
+      });
+
+      // Should not call isAuthenticated again since user is not logged in
+      expect(mockIsAuthenticated).not.toHaveBeenCalled();
     });
   });
 });

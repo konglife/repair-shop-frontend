@@ -4,7 +4,13 @@ import React, { useState } from 'react';
 import {
   AppBar,
   Box,
+  CircularProgress,
   CssBaseline,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Drawer,
   IconButton,
   List,
@@ -12,6 +18,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Button,
   Toolbar,
   Typography,
   useTheme,
@@ -27,6 +34,7 @@ import {
   Logout,
 } from '@mui/icons-material';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
 
 const drawerWidth = 240;
 const collapsedDrawerWidth = 64;
@@ -51,8 +59,11 @@ const navigationItems: NavigationItem[] = [
 
 export default function MainLayout({ children }: MainLayoutProps) {
   const theme = useTheme();
+  const { user, logout, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(true);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -60,6 +71,26 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
   const handleDesktopToggle = () => {
     setDesktopOpen(!desktopOpen);
+  };
+
+  const handleLogoutClick = () => {
+    setLogoutDialogOpen(true);
+  };
+
+  const handleLogoutConfirm = async () => {
+    setLoggingOut(true);
+    try {
+      logout(); // This will redirect to login page
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      setLoggingOut(false);
+      setLogoutDialogOpen(false);
+    }
+  };
+
+  const handleLogoutCancel = () => {
+    setLogoutDialogOpen(false);
   };
 
   const currentDrawerWidth = desktopOpen ? drawerWidth : collapsedDrawerWidth;
@@ -132,10 +163,19 @@ export default function MainLayout({ children }: MainLayoutProps) {
               <AccountCircle />
             </IconButton>
             <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
-              User Name
+              {loading ? 'Loading...' : user?.username || user?.email || 'User'}
             </Typography>
-            <IconButton color="inherit" title="Logout">
-              <Logout />
+            <IconButton 
+              color="inherit" 
+              title="Logout" 
+              onClick={handleLogoutClick}
+              disabled={loading || loggingOut}
+            >
+              {loggingOut ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                <Logout />
+              )}
             </IconButton>
           </Box>
         </Toolbar>
@@ -192,6 +232,43 @@ export default function MainLayout({ children }: MainLayoutProps) {
         <Toolbar />
         {children}
       </Box>
+      
+      {/* Logout Confirmation Dialog */}
+      <Dialog
+        open={logoutDialogOpen}
+        onClose={handleLogoutCancel}
+        aria-labelledby="logout-dialog-title"
+        aria-describedby="logout-dialog-description"
+      >
+        <DialogTitle id="logout-dialog-title">
+          Confirm Logout
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="logout-dialog-description">
+            Are you sure you want to log out? You will need to log in again to access the dashboard.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleLogoutCancel} disabled={loggingOut}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleLogoutConfirm} 
+            variant="contained" 
+            color="primary"
+            disabled={loggingOut}
+          >
+            {loggingOut ? (
+              <>
+                <CircularProgress size={16} sx={{ mr: 1 }} />
+                Logging out...
+              </>
+            ) : (
+              'Logout'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

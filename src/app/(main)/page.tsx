@@ -1,95 +1,93 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+
+import React from 'react';
+import { Box, Typography, Card, CardContent, CircularProgress } from '@mui/material';
+import { useAuthGuard, useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.tsx</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const { loading, isProtected } = useAuthGuard();
+  const { user } = useAuth();
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+  // Show loading while authenticating or redirecting
+  if (loading || isProtected) {
+    return (
+      <Box 
+        display="flex" 
+        justifyContent="center" 
+        alignItems="center" 
+        minHeight="400px"
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Welcome to Repair Shop Dashboard
+      </Typography>
+      
+      <Typography variant="h6" color="text.secondary" gutterBottom>
+        Hello, {user?.username || user?.email}!
+      </Typography>
+
+      <Box 
+        sx={{ 
+          display: 'grid',
+          gridTemplateColumns: { 
+            xs: '1fr', 
+            md: 'repeat(2, 1fr)', 
+            lg: 'repeat(4, 1fr)' 
+          },
+          gap: 3,
+          mt: 2 
+        }}
+      >
+        <Card>
+          <CardContent>
+            <Typography variant="h6" component="div">
+              Products
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Manage your inventory
+            </Typography>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent>
+            <Typography variant="h6" component="div">
+              Stock
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Track stock levels
+            </Typography>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent>
+            <Typography variant="h6" component="div">
+              Sales
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Record sales transactions
+            </Typography>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent>
+            <Typography variant="h6" component="div">
+              Repairs
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Manage repair jobs
+            </Typography>
+          </CardContent>
+        </Card>
+      </Box>
+    </Box>
   );
 }

@@ -145,6 +145,23 @@ export class AuthAPI {
   }
 
   /**
+   * Check if JWT token is expired
+   */
+  private isTokenExpired(token: string): boolean {
+    try {
+      // Parse JWT payload (base64 decode the middle part)
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+      
+      // Check if token has expired
+      return payload.exp && payload.exp < currentTime;
+    } catch (error) {
+      console.error('Failed to parse token:', error);
+      return true; // Consider invalid tokens as expired
+    }
+  }
+
+  /**
    * Login with email/username and password
    */
   async login(credentials: LoginRequest): Promise<LoginResponse> {
@@ -213,7 +230,19 @@ export class AuthAPI {
    * Check if user is currently authenticated
    */
   isAuthenticated(): boolean {
-    return tokenStorage.hasValidToken() && userStorage.getUser() !== null;
+    const token = tokenStorage.getToken();
+    if (!token || !userStorage.getUser()) {
+      return false;
+    }
+
+    // Check if token is expired
+    if (this.isTokenExpired(token)) {
+      // Automatically logout if token is expired
+      this.logout();
+      return false;
+    }
+
+    return true;
   }
 
   /**
