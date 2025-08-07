@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -11,8 +11,11 @@ import {
   InputAdornment,
   IconButton,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 interface LoginFormData {
   email: string;
@@ -25,6 +28,9 @@ interface LoginFormErrors {
 }
 
 export default function LoginPage() {
+  const { login, isAuthenticated, loading: authLoading, error: authError, clearError } = useAuth();
+  const router = useRouter();
+  
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: '',
@@ -32,6 +38,20 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<LoginFormErrors>({});
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/');
+    }
+  }, [isAuthenticated, router]);
+
+  // Clear auth errors when component mounts or user starts typing
+  useEffect(() => {
+    if (authError) {
+      clearError();
+    }
+  }, [formData, authError, clearError]);
 
   const handleInputChange = (field: keyof LoginFormData) => (
     event: React.ChangeEvent<HTMLInputElement>
@@ -79,11 +99,14 @@ export default function LoginPage() {
     
     setLoading(true);
     
-    // Simulate API call - actual authentication will be implemented in story 1.4
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      console.log('Login form submitted:', formData);
-      // TODO: Implement actual authentication in story 1.4
+      const success = await login(formData.email, formData.password);
+      
+      if (success) {
+        // Redirect to dashboard on successful login
+        router.push('/');
+      }
+      // Error handling is managed by AuthContext and displayed below
     } catch (error) {
       console.error('Login error:', error);
     } finally {
@@ -94,6 +117,26 @@ export default function LoginPage() {
   const togglePasswordVisibility = () => {
     setShowPassword((prev) => !prev);
   };
+
+  // Combined loading state
+  const isLoading = loading || authLoading;
+
+  // Show loading spinner while checking existing auth
+  if (authLoading && !authError) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          bgcolor: 'grey.100',
+        }}
+      >
+        <CircularProgress size={40} />
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -136,6 +179,17 @@ export default function LoginPage() {
           >
             Please sign in to access the dashboard
           </Typography>
+
+          {/* Authentication Error Display */}
+          {authError && (
+            <Alert 
+              severity="error" 
+              sx={{ mb: 3 }}
+              data-testid="auth-error"
+            >
+              {authError}
+            </Alert>
+          )}
           
           <Box component="form" onSubmit={handleSubmit} noValidate>
             <TextField
@@ -149,7 +203,7 @@ export default function LoginPage() {
               error={!!errors.email}
               helperText={errors.email}
               required
-              disabled={loading}
+              disabled={isLoading}
               sx={{ mb: 2 }}
               inputProps={{
                 'data-testid': 'email-input',
@@ -167,7 +221,7 @@ export default function LoginPage() {
               error={!!errors.password}
               helperText={errors.password}
               required
-              disabled={loading}
+              disabled={isLoading}
               sx={{ mb: 3 }}
               inputProps={{
                 'data-testid': 'password-input',
@@ -178,7 +232,7 @@ export default function LoginPage() {
                     <IconButton
                       aria-label="toggle password visibility"
                       onClick={togglePasswordVisibility}
-                      disabled={loading}
+                      disabled={isLoading}
                       edge="end"
                       data-testid="password-toggle"
                     >
@@ -193,7 +247,7 @@ export default function LoginPage() {
               type="submit"
               fullWidth
               variant="contained"
-              disabled={loading}
+              disabled={isLoading}
               data-testid="login-button"
               sx={{
                 py: 1.5,
@@ -201,7 +255,7 @@ export default function LoginPage() {
                 fontWeight: 600,
               }}
             >
-              {loading ? (
+              {isLoading ? (
                 <>
                   <CircularProgress size={20} sx={{ mr: 1 }} />
                   Signing In...
